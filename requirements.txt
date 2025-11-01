@@ -1,0 +1,9 @@
+fastapi==0.115.0
+uvicorn==0.38.0
+pydantic==2.9.2
+typing-extensions==4.15.0
+
+# LangGraph 1.0 + SQLite checkpointer
+langgraph==1.0.2
+langgraph-checkpoint==3.0.0
+langgraph-checkpoint-sqlite==3.0.0

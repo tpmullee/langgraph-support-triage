@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Support Triage Autopilot (LangGraph 1.0)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="./styles.css" />
+
+  <!-- One Mermaid script, pinned v10.x -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.4/dist/mermaid.min.js"></script>
+  <script>
+    // We'll render programmatically later; don't auto-run on load.
+    mermaid.initialize({ startOnLoad: false });
+  </script>
+</head>
+<body>
+  <header>
+    <h1>Support Triage Autopilot</h1>
+    <p>Stateful LangGraph with human approval gate (interrupt → resume)</p>
+  </header>
+
+  <main class="grid">
+    <!-- Left column -->
+    <section class="panel">
+      <h2>Roles</h2>
+      <div class="roles">
+        <div class="role">
+          <h3>Customer</h3>
+          <p>Submits a support request (FAQ, Issue, or Refund).</p>
+        </div>
+        <div class="role">
+          <h3>Autopilot (Graph)</h3>
+          <p>Classifies intent and performs the action. Pauses on refunds.</p>
+        </div>
+        <div class="role">
+          <h3>Reviewer (Human)</h3>
+          <p>Approves/denies refunds at the human gate, then the graph resumes.</p>
+        </div>
+      </div>
+
+      <h2>Conversation</h2>
+      <div id="log" class="log" aria-live="polite"></div>
+
+      <form id="chat-form" class="chat">
+        <input id="message" type="text" placeholder="Type a message (e.g., 'What are your hours?' or 'Please refund $19')" required />
+        <button type="submit">Send</button>
+      </form>
+
+      <div id="approval" class="approval hidden">
+        <h3>Approval Required</h3>
+        <p id="approval-text">The graph paused at a human gate. Approve or deny to resume.</p>
+        <div class="buttons">
+          <button id="approve">Approve</button>
+          <button id="deny" class="secondary">Deny</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right column -->
+    <section class="panel">
+      <h2>Graph & Business View</h2>
+
+      <!-- We'll inject SVG here via mermaid.render -->
+      <div class="diagram" id="mmd_target"></div>
+
+      <details>
+        <summary>How this works (LangGraph)</summary>
+        <ul>
+          <li><strong>StateGraph</strong> routes to nodes by intent (faq / issue / refund / fallback).</li>
+          <li><strong>interrupt()</strong> pauses at the human gate; you resume by invoking the graph with a value (approval) via <code>Command(resume=...)</code>.</li>
+          <li><strong>SQLite checkpointer</strong> persists state per <code>thread_id</code>, so you can pause indefinitely and resume exactly.</li>
+        </ul>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <small>UI served via FastAPI <code>StaticFiles</code>.</small>
+  </footer>
+
+  <!-- App logic -->
+  <script type="module" src="./app.js"></script>
+
+  <!-- Render Mermaid programmatically (v10 API) -->
+  <script>
+    const def = String.raw`flowchart TD
+  A([START]) --> B[Classify]
+  B -- "faq" --> C[Handle FAQ]
+  B -- "issue" --> D[Create Ticket]
+  B -- "refund (high risk)" --> E{Human Gate: approve?}
+  B -- "refund (low)" --> F[Issue Refund]
+  B -- "unknown" --> G[Fallback]
+  E -- "approve" --> F
+  E -- "deny" --> H[Refund Denied]
+  C --> I([END])
+  D --> I
+  F --> I
+  G --> I
+  H --> I`;
+    (async () => {
+      try {
+        const { svg } = await mermaid.render("triageGraph", def);
+        document.getElementById("mmd_target").innerHTML = svg;
+      } catch (e) {
+        document.getElementById("mmd_target").innerHTML =
+          '<div style="color:#ff6b6b">Mermaid render error: ' + (e?.message||e) + "</div>";
+        console.error(e);
+      }
+    })();
+  </script>
+
+</body>
+</html>
